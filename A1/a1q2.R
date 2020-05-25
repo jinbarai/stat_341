@@ -1,0 +1,71 @@
+library(dslabs)
+data(sleep)
+data(murders)
+str(murders)
+
+
+# Plot Correlation coefficients between x,y 
+plot_corr <- function(x, y) {
+  plot(0, 0,
+       main = "",
+       xlab = "",
+       ylab = "",
+       xaxt = "n",
+       yaxt = "n",
+       col = "white")
+  text(x = 0, y = 0,
+       labels = paste(round(cor(x, y), 4)),
+       col = "firebrick",
+       cex = 2)
+}
+
+# Scatter Plot 
+plot_scatt <- function(x,y) {
+    plot(x, y,
+     main = "",
+     xlab = "",
+     ylab = "",
+     pch = 16,
+     col = adjustcolor(col = "firebrick", alpha.f = 0.4))
+    title(main = "", font = 2)
+}
+
+# Histogram 
+plot_hist <- function (x) {
+     hist(x,
+     main = "",
+     xlab = "",
+     ylab = "",
+     col = "gray80")
+}
+
+
+# Matrix Plot
+matrix.plot <- function(df) {
+  m <- ncol(df)
+  n <- nrow(df)
+  # m*m columns of plots 
+  par(mfcol = c(m, m),
+      mar = c(1, 4, 4, 1))
+  for (i in 1:m) {
+    for (j in 1:m) {
+      # diagonal plots should be histogram
+      if (i==j) {
+        plot_hist(df[,],df[,i])
+        title(main=colnames(df)[i], font = 2)
+      }
+      # lower triangle should be for coefficients 
+      else if (i>j) {
+        #plot_corr()
+        title(main=colnames(df)[i], font = 2)
+      }
+      # upper triangle for scatter plots
+      else {
+        #plot_scatt()
+        title(main=colnames(df)[i], font = 2)
+      }
+    }
+  }
+}
+
+matrix.plot(sleep)
