@@ -1,6 +1,10 @@
-data <- read.csv("spotify.csv", header = TRUE)
-df <- data[,9:11]
+---
+title: "Question 2"
+author: "Jin Barai"
+output: html_document
+---
 
+```{r}
 # Plot Correlation coefficients between x,y 
 plot_corr <- function(x, y) {
   plot(0, 0,
@@ -16,7 +20,7 @@ plot_corr <- function(x, y) {
        cex = 2)
 }
 
-# Scatter Plot 
+# Plot Scatter Plot between x,y variates
 plot_scatt <- function(x,y) {
     plot(x, y,
      main = "",
@@ -27,7 +31,7 @@ plot_scatt <- function(x,y) {
     title(main = "", font = 2)
 }
 
-# Histogram 
+# Plot Histogram between x,y variates
 plot_hist <- function (x) {
      hist(x,
      main = "",
@@ -66,3 +70,5 @@ matrix.plot <- function(df) {
 }
 
 matrix.plot(df)
+```
+
