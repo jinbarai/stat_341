@@ -1,8 +1,12 @@
 ---
 title: "Question 1"
 author: "Jin Barai"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
+
+\
 
 ##### (a) 
 The range is **location invariant**. 
@@ -77,7 +81,7 @@ abline(h = 0, v = 0, col = "grey")
 
 ***Good Thing:*** It is location invariant hence adding any values to the units in the population will still give us the same answer.
 
-***Bad Thing:*** 
+***Bad Thing:*** If you observe the Sensitivity Curve, you can clearly see that for extreme observations the spread value will completely change. 
 
 
 

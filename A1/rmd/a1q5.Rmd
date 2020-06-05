@@ -1,0 +1,15 @@
+---
+title: "Question 5"
+author: "Jin Barai"
+output:
+  pdf_document: default
+  html_document: default
+---
+\
+
+#### Statement: All units have the same influence on any given population attribute. 
+\
+
+##### Answer: False
+
+The above statement is false. Ideally, no single unit should have a greater influence than other units in the population. But as we have seen before (as in Q3), it is possible for a unit to have a greater influence than others. This could be because "it might be the most interesting unit in the population" (Course Notes, Section 2.2.3)

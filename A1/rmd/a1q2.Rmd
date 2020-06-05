@@ -1,16 +1,20 @@
 ---
 title: "Question 2"
 author: "Jin Barai"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
+
+\
 
 ```{r}
 # Plot Correlation coefficients between x,y 
-plot_corr <- function(x, y) {
+plot_corr <- function(x, y, x_lab, y_lab) {
   plot(0, 0,
        main = "",
-       xlab = "",
-       ylab = "",
+       xlab = x_lab,
+       ylab = y_lab,
        xaxt = "n",
        yaxt = "n",
        col = "white")
@@ -21,22 +25,21 @@ plot_corr <- function(x, y) {
 }
 
 # Plot Scatter Plot between x,y variates
-plot_scatt <- function(x,y) {
+plot_scatt <- function(x,y,x_lab,y_lab) {
     plot(x, y,
      main = "",
-     xlab = "",
-     ylab = "",
+     xlab = x_lab,
+     ylab = y_lab,
      pch = 16,
      col = adjustcolor(col = "firebrick", alpha.f = 0.4))
-    title(main = "", font = 2)
 }
 
 # Plot Histogram between x,y variates
-plot_hist <- function (x) {
+plot_hist <- function (x,lab) {
      hist(x,
      main = "",
      xlab = "",
-     ylab = "",
+     ylab = lab,
      col = "gray80")
 }
 
@@ -46,29 +49,21 @@ matrix.plot <- function(df) {
   m <- ncol(df)
   n <- nrow(df)
   # m*m columns of plots 
-  par(mfcol = c(m, m),
-      mar = c(1, 4, 4, 1))
+  par(mfcol = c(m, m))
   for (i in 1:m) {
     for (j in 1:m) {
-      # diagonal plots should be histogram
       if (i==j) {
-        plot_hist(df[,],df[,i])
-        title(main=colnames(df)[i], font = 2)
+        plot_hist(df[,i],colnames(df)[i])
       }
-      # lower triangle should be for coefficients 
       else if (i>j) {
-        #plot_corr()
-        title(main=colnames(df)[i], font = 2)
+        plot_scatt(df[,i],df[,j],colnames(df)[i],colnames(df)[j])
       }
-      # upper triangle for scatter plots
       else {
-        #plot_scatt()
-        title(main=colnames(df)[i], font = 2)
+        plot_corr(df[,i], df[,j], colnames(df)[i], colnames(df)[j])
       }
     }
   }
 }
 
-matrix.plot(df)
 ```
 
