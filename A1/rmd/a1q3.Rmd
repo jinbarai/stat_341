@@ -9,7 +9,8 @@ output:
 ```{r}
 # Using Spotify.csv data
 # Using columns 11-13 for duration, acousticness, speechiness
-data <- read.csv("spotify.csv", header = TRUE)
+dir <- getwd()
+data <- read.csv(file.path(dir, "spotify.csv"), header = TRUE)
 df <- data[,11:13]
 # Plot Correlation coefficients between x,y 
 plot_corr <- function(x, y, x_lab, y_lab) {
@@ -80,7 +81,7 @@ From below, we can clearly observe that **loudness**, **energy** and **danceabil
 ***Danceability:*** Positive correlation with valence
 
 ```{r, echo=FALSE}
-data <- read.csv("spotify.csv", header = TRUE)
+
 library(kableExtra)
 plot_corr <- function(x, y) {
   plot(0, 0,
@@ -197,14 +198,16 @@ kable_styling(kable(data[c(which.max(Delta), which.max(data$acousticness+data$sp
 #### (h)
 ```{r}
 # Artists that have appeared in the Billboard Top 30 Four Times 
+library(kableExtra)
 top_artists <- names(which(table(data$artist) == 4))
 num_appears <- rep(0, length(top_artists))
-artist_pop <- rep(0, length(top_artists))
+artist_valence <- rep(0, length(top_artists))
 for (i in 1:length(top_artists)) {
   artist_match <- data$artist == top_artists[i]
-  song_pop <- data[artist_match, ]$valence
-  num_appears[i] <- length(song_pop)
-  artist_pop[i] <- round(mean(song_pop))
+  song_valence <- data[artist_match, ]$valence
+  num_appears[i] <- length(song_valence)
+  artist_valence[i] <- round(mean(song_valence))
 }
+kable_styling(kable(data.frame(artist = top_artists, num_hits = num_appears, avg_valence = artist_valence)))
 
 ```

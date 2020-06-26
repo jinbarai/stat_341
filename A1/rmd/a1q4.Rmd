@@ -8,22 +8,26 @@ output:
 \
 
 #### Description of the data
-The data set contains information about every student at Jain University, Bangalore, India who applied to for on-campus recruitments by companies. 
-\
+The data set contains information about every student at Jain University, Bangalore, India who applied for on-campus recruitments/placements. 
+
+#### Unit
 The unit in this case would be a student studying at Jain University and who applied to be recruited by companies. 
 
 \
 
-***Variate #1:*** The degree percentage of a student i.e their cumulative grade at Jain University during the course of their study.
+#### Variate
+
 \
-***Variate #2:*** The degree specialization i.e their field of study.
+**1:** The degree percentage of a student i.e their cumulative grade at Jain University during the course of their study.
 \
-***Variate #3:*** Salary offered by the company to a particular student.  
+**2:** The degree specialization i.e their field of study.
+\
+**3:** Salary offered by the company to a particular student.  
 
 \
 
 #### Why population?
-This dataset can be considered as a population (as opposed to sample) because in this case we know everything about all the units. We are not using a sample to make assumptions about the entire population. We have complete information about each and every student who applied to be recruited by various companies. Hence, this is an example of a population. 
+This dataset can be considered as a population (as opposed to sample) because in this case we know everything about all the units. We are not using a sample to make assumptions about the entire population. We have complete information about each and every student who applied to be recruited by various companies. Also, the data set is finite and complete. Hence, this is an example of a population. 
 
 \
 
