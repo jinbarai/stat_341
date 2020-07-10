@@ -1,0 +1,117 @@
+---
+title: "Question 4"
+author: "Jin Barai"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+##### Introduction
+
+Suppose we have the population $\mathcal{P}=\{\mathcal{P}_{1},\mathcal{P}_{2}\}$. We can now compare some attributes across the sub-populations of the above population. We need to understand if the difference between attributes of two sub-populations - $a(\mathcal{P}_{1})$ and $a(\mathcal{P}_{2})$  is unusual or expected. 
+
+We use a test of significance to understand this, relative to *randomly mixed* sub-populations. 
+
+##### Test of Significance Algorithm 
+
+1. Stating the **null hypothesis** denoted by $H_{0}$: $\mathcal{P}_{1}$ and $\mathcal{P}_{2}$ are drawn from the same population
+2. Construct a discrepency measure $D = D(\mathcal{P}_{1}, \mathcal{P}_{2})$ where the large values indicate evidence **against** $H_{0}$. The discrepency measure is also referred to as **test statistic**.
+3. Calculate the **observed discrepancy** $d_{obs} =  D(\mathcal{P}_{1}, \mathcal{P}_{2})$ 
+4. Shuffle the sub-populations $M$ times and calculate the **observed p-value** given by:
+     $$ p-value = Pr(D \ge d_{obs} \mid H_{0}\ is\ true) \approx  \frac 1 M\sum _{i=1}^{M}I(D(\mathcal{P}^{*}_{1,i},\mathcal{P}^{*}_{2,i}) \ge d_{obs}) $$
+which basically means finding the probability that a randomly shuffled sub-population has a discrepency measure ($D$) **at least** as large as what we observed ($d_{obs}$), given that $H_{0}$ is true. The smaller the $p$-value, the greater the evidence against the null hypothesis. 
+
+
+*Note*: In order to calculate the $p$-value *exactly*, one must consider all $N_{1}+N_{2} \choose N_{1}$ = $N_{1}+N_{2} \choose N_{2}$ possible permutations, but since it is too many permutations to consider we just use M of them.
+     
+##### Example
+
+Let's use the TitanicSurvival data to find an estimate of the significance levels using test of significance algorithm. 
+The two sub-populations would be the $\mathcal{P}_{male}$ = survived male passengers and $\mathcal{P}_{female}$ = survived female passengers. The attribute would be the average age.
+
+$H_{0}$: The two populations ($\mathcal{P}_{male}$,$\mathcal{P}_{female}$) are randomly drawn. 
+
+```{r, echo=FALSE}
+mixRandomly <- function(pop) {
+  pop1 <- pop$pop1
+  n_pop1 <- nrow(pop1)
+  pop2 <- pop$pop2
+  n_pop2 <- nrow(pop2)
+  mix <- rbind(pop1, pop2)
+  select4pop1 <- sample(1:(n_pop1 + n_pop2), n_pop1, replace = FALSE)
+  new_pop1 <- mix[select4pop1, ]
+  new_pop2 <- mix[-select4pop1, ]
+  list(pop1 = new_pop1, pop2 = new_pop2)
+}
+```
+
+```{r, echo=FALSE}
+getAveDiffsFn <- function(variate) {
+  function(pop) {
+    mean(pop$pop1[, variate]) - mean(pop$pop2[, variate])
+  }
+}
+getSDRatioFn <- function(variate) {
+  function(pop) {
+    sd(pop$pop1[, variate])/sd(pop$pop2[, variate])
+  }
+}
+```
+
+```{r, echo=FALSE}
+library(carData)
+data(TitanicSurvival)
+Titanic = na.omit(TitanicSurvival)
+Titanic$survived1 = as.numeric(Titanic$survived == "yes")
+```
+
+```{r}
+Titanic = Titanic[Titanic$survived == "yes",]
+pop <- list(pop1 = subset(Titanic, Titanic$sex == "male"), pop2 = subset(Titanic, Titanic$sex=="female"))
+```
+
+```{r}
+# The difference in average age of the subpopulations
+diffAveAge <- getAveDiffsFn("age")
+# The ratio of the standard deviations between the subpopulations 
+ratioSDAge <- getSDRatioFn("age")
+round(c(diffAveAge(pop), ratioSDAge(pop)),3)
+```
+
+Randomly mixing the two sub-populations and calculating the above summaries. We use a sample of $M$=5000 shuffled pairs in this case. 
+ 
+```{r}
+set.seed(341)
+mixedPop <- mixRandomly(pop)
+diffAge <- sapply(1:5000, FUN = function(...) {
+  diffAveAge(mixRandomly(pop))
+})
+round(c(diffAveAge(mixedPop), ratioSDAge(mixedPop)), 3)
+```
+
+Finding the $p$-value
+```{r}
+sum(abs(diffAge) >= abs(diffAveAge(pop))) / length(diffAge)
+```
+```{r, echo=FALSE}
+plot.margin = c(1,1,1,1)
+par(mfrow = c(1,2))
+hist(diffAge, breaks = "FD", main = "Randomly Mixed Populations", xlab = "difference in averages of ages", col = "lightgrey")
+abline(v = diffAveAge(pop), col = "red", lwd = 2)
+hist(diffAge, breaks = "FD", main = "Randomly Mixed Populations", xlab = "ratio of standard deviations",col = "lightgrey")
+abline(v = ratioSDAge(pop), col = "red", lwd = 2)
+```
+
+Conclusions:
+  
+* $p-value \approx  0.0704$ for the null hypothesis $H_{0}$
+
+* From the $p$-value we can conclude that there is **weak evidence** against $H_{0}$
+
+* Hence, we have very weak evidence against the null hypothesis that the pair $(\mathcal{P}_{male}$ ,$\mathcal{P}_{female})$ was randomly drawn  
+
+##### Remarks
+
+* The observed $p$-value doesn't measure evidence **in favour** of $H_{0}$. 
+* The observed $p$-value provides a common (probabilistic) scale on which to measure the **evidence against null hypothesis**
+* A test of significance **neither accepts nor rejects a null hypothesis**, it provides a measure of evidence against it. 

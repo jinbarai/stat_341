@@ -1,0 +1,33 @@
+---
+title: "Question 3"
+author: "Jin Barai"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+(Content from 3.2.4)
+
+#### Question
+Find the joint inclusion probability $\pi_{uv}$ for a stratified random sampling. You need to find the $\pi_{uv}$ for both cases: 
+
+* When $u$ and $v$ are in the same strata
+* When $u$ and $v$ are in different stratas
+
+[2 points]
+
+#### Solution: 
+
+Consider $u$,$v$ to be in the same strata $i$ (i.e $u,v \in \mathcal\ P_{i}$), the units will both be included in the sample $S$ only if both are selected when $\mathcal\ P_{i}$ is sampled. Now strata $i$ has $N_{i}$ units and $n_{i}$ units being selected at random and without replacement, we can find $\pi_{uv}$ for $u,v$ in the same sample as:
+
+$$ \pi_{uv} = P(u \in S_{i}, v \in S_{i}) = \frac {{N_{i}-2 \choose n_{i}-2}} {{N_{i} \choose n_{i}}} = \frac {n_{i}(n_{i}-1)}  {N_{i}(N_{i}-1)}$$
+
+[1 point] 
+
+\
+
+Now, consider $u$ in strata $i$ and $v$ in strata $j$. In this case $u,v$ will be included in the sample $S$ only if $u$ and $v$ are selected when $\mathcal\ P_{i}$ and $\mathcal\ P_{j}$ are sampled respectively. Each strata is independent of the other and hence the joint inclusion probability in this case would be: 
+$$ {\pi_{uv}} = P(u \in S_{i}, v \in S_{j}) = P(u \in S_{i})P(v \in S_{j}) = {\frac {n_{i}n_{j}}  {N_{i}N_{j}}}$$
+
+[1 point]
+
