@@ -1,0 +1,509 @@
+---
+title: "Question 1"
+author: "Jin Barai"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r echo=FALSE}
+getmuFun <- function(pop, xvarname, yvarname){
+  ## First remove NAs
+  pop <- na.omit(pop[, c(xvarname, yvarname)])
+  x <- pop[, xvarname]
+  y <- pop[, yvarname]
+  xks <- unique(x)
+  muVals <- sapply(xks,
+                   FUN = function(xk) {
+                     mean(y[x==xk])
+                   })
+  ## Put the values in the order of xks
+  ord <- order(xks)
+  xks <- xks[ord]
+  xkRange <-xks[c(1,length(xks))]
+  minxk <- min(xkRange) 
+  maxxk <- max(xkRange)
+  ## mu values
+  muVals <- muVals[ord]
+  muRange <- muVals[c(1, length(muVals))]
+  muFun <- function(xVals){
+    ## vector of predictions
+    ## same size as xVals and NA in same locations
+    predictions <- xVals
+    ## Take care of NAs
+    xValsLocs <- !is.na(xVals)
+    ## Just predict non-NA xVals
+    predictions[xValsLocs] <- sapply(xVals[xValsLocs],
+                                    FUN = function(xVal) {
+                                      if (xVal < minxk) {
+                                        result <- muRange[1]
+                                      } else
+                                        if(xVal > maxxk) {
+                                          result <- muRange[2]
+                                        } else
+                                        {
+                                          xlower <- max(c(minxk, xks[xks < xVal]))
+                                          xhigher <- min(c(maxxk, xks[xks > xVal]))
+                                          mulower <- muVals[xks == xlower]
+                                          muhigher <- muVals[xks == xhigher]
+                                          interpolateFn <- approxfun(x=c(xlower, xhigher),
+                                                                     y=c(mulower, muhigher))
+                                          result <- interpolateFn(xVal)
+                                        }
+                                      result
+                                    }
+    )
+    ## Now return the predictions (including NAs)
+    predictions
+  }
+  muFun
+}
+
+getmuhat <- function(sampleXY, complexity = 1) {
+  formula <- paste0("y ~ ",
+    if (complexity==0) {
+      "1"
+    } else paste0("poly(x, ", complexity, ", raw = TRUE)"))
+
+  fit <- lm(as.formula(formula), data = sampleXY)
+
+  ## From this we construct the predictor function
+  muhat <- function(x){
+    if ("x" %in% names(x)) {
+    ## x is a dataframe containing the variate named
+    ## by xvarname
+      newdata <- x
+    } else 
+    ## x is a vector of values that needs to be a data.frame
+    {newdata <- data.frame(x = x) }
+    ## The prediction
+    predict(fit, newdata = newdata)
+  }
+  ## muhat is the function that we need to calculate values 
+  ## at any x, so we return this function from getmuhat
+  muhat
+}
+
+apse_all <- function(Ssamples, Tsamples, complexity, mu){
+  ## average over the samples S
+  ##
+  N_S <- length(Ssamples)
+  muhats <- lapply(Ssamples, 
+                   FUN=function(sample) getmuhat(sample, complexity)
+  )
+  ## get the average of these, mubar
+  mubar <- getmubar(muhats)
+  
+  rowMeans(sapply(1:N_S, 
+                  FUN=function(j){
+                    T_j         <- Tsamples[[j]]
+                    muhat       <- muhats[[j]]
+                    ## Take care of any NAs
+                    T_j         <- na.omit(T_j)
+                    y           <- T_j$y
+                    x           <- T_j$x
+                    mu_x        <- mu(x)
+                    muhat_x     <- muhat(x)
+                    mubar_x     <- mubar(x)
+                    
+                    ## apse
+                    ## average over (x_i,y_i) in a
+                    ## single sample T_j the squares
+                    ## (y - muhat(x))^2
+                    apse        <- (y - muhat_x)
+                    
+                    ## bias2:
+                    ## average over (x_i,y_i) in a
+                    ## single sample T_j the squares
+                    ## (y - muhat(x))^2
+                    bias2       <- (mubar_x -mu_x)
+                    
+                    ## var_mutilde
+                    ## average over (x_i,y_i) in a
+                    ## single sample T_j the squares
+                    ## (y - muhat(x))^2
+                    var_mutilde <- (muhat_x - mubar_x)
+                    
+                    ## var_y :
+                    ## average over (x_i,y_i) in a
+                    ## single sample T_j the squares
+                    ## (y - muhat(x))^2
+                    var_y       <- (y - mu_x)
+                    
+                    ## Put them together and square them
+                    squares     <- rbind(apse, var_mutilde, bias2, var_y)^2
+                    
+                    ## return means
+                    rowMeans(squares)
+                  }
+  ))
+}
+```
+
+
+```{r}
+ottawa1995 <- read.csv("./ottawaTemp1995.csv")
+ottawaOther <- read.csv("./ottawaOtherYears.csv")
+n <- 365
+x <- 1:n
+temp1995.data <- data.frame(x=1:n, y=ottawa1995$Temp[1:n])
+```
+
+#### (a)
+
+Scatter plot of the data and overlay fitted polynomials with degrees 2 and 9 to
+the data: 
+```{r}
+muhat2 <- getmuhat(temp1995.data, 2)
+muhat9 <- getmuhat(temp1995.data, 9)
+
+xlim <- extendrange(temp1995.data[x,])
+
+plot(temp1995.data,
+     pch=19, col= adjustcolor("black", 0.5))
+curve(muhat2, from = xlim[1], to = xlim[2], 
+      add = TRUE, col="red", lwd=2)
+curve(muhat9, from = xlim[1], to = xlim[2], 
+      add = TRUE, col="steelblue", lwd=2)
+title(main="red=degree 2 , blue=degree 9")
+```
+
+
+
+#### (b)
+Generating m = 25 samples of size n = 50 and fitting polynomials of degree 2 and 9 to every sample
+```{r}
+getSampleComp <- function(pop, size, replace=FALSE) {
+  N <- dim(pop)[1]
+  samp <- rep(FALSE, N)
+  samp[sample(1:N, size, replace = replace)] <- TRUE
+  samp
+}
+
+
+### This function will return a data frame containing
+### only two variates, an x and a y
+getXYSample <- function(xvarname, yvarname, samp, pop) {
+  sampData <- pop[samp, c(xvarname, yvarname)]
+  names(sampData) <- c("x", "y")
+  sampData
+}
+```
+
+```{r}
+N_S <- 25
+set.seed(341)  # for reproducibility
+
+n= 50
+samps <- lapply(1:N_S, FUN= function(i){getSampleComp(temp1995.data, n)})
+Ssamples <- lapply(samps, FUN= function(Si){getXYSample("x", "y", Si, temp1995.data)})
+Tsamples <- lapply(samps, FUN= function(Si){getXYSample("x", "y", !Si, temp1995.data)})
+
+muhats2 <- lapply(Ssamples, getmuhat, complexity = 2)
+#getmubar(muhats2)
+
+muhats9 <- lapply(Ssamples, getmuhat, complexity = 9)
+#mubar10 <- getmubar(muhats10)
+```
+
+
+#### (c)
+
+```{r}
+par(mfrow=c(1,2))
+
+xvals <- seq(xlim[1], xlim[2], length.out = 200)
+plot(temp1995.data, 
+     pch=19, type='n',
+     xlab="x", ylab="predictions",
+     main= " muhats (degree = 2) & mubar")
+
+
+for (i in 1:N_S) {
+  curveFn <- muhats2[[i]]
+  curve(curveFn, from = xlim[1], to = xlim[2], add=TRUE, col=adjustcolor("blue", 0.2), lwd=3, lty=(1))
+}
+
+curve(muhat2,  from = xlim[1], to = xlim[2],
+      add=TRUE, col="firebrick", lwd=3)
+
+points(temp1995.data, 
+     pch=19, col= adjustcolor("black", 0.5))
+
+
+plot(temp1995.data, 
+     pch=19, type='n',
+     xlab="x", ylab="predictions",
+     main= " muhats (degree = 9) & mubar")
+
+for (i in 1:N_S) {
+  curveFn <- muhats9[[i]]
+  curve(curveFn, xlim[1], xlim[2], add=TRUE, col=adjustcolor("blue", 0.2), lwd=3, lty=1)
+}
+
+curve(muhat9, xlim[1], xlim[2], add=TRUE, col="firebrick", lwd=3)
+
+points(temp1995.data, 
+     pch=19, col= adjustcolor("black", 0.5))
+```
+
+
+
+#### (d)
+```{r}
+getmubar <- function(muhats) {
+  function(x) {
+    Ans <- sapply(muhats, FUN=function(muhat){muhat(x)})
+    apply(Ans, MARGIN=1, FUN=mean)
+  }
+}
+
+ave_y_mu_sq <- function(sample, predfun, na.rm = TRUE){
+  mean((sample$y - predfun(sample$x))^2, na.rm = na.rm)
+}
+ 
+###########
+
+ave_mu_mu_sq <- function(predfun1, predfun2, x, na.rm = TRUE){
+  mean((predfun1(x) - predfun2(x))^2, na.rm = na.rm)
+}
+
+###########
+
+
+var_mutilde <- function(Ssamples, Tsamples, complexity){
+  ## get the predictor function for every sample S
+  muhats <- lapply(Ssamples, 
+                   FUN=function(sample){
+                     getmuhat(sample, complexity)
+                   }
+  )
+  ## get the average of these, mubar
+  mubar <- getmubar(muhats)
+  
+  ## average over all samples S
+  N_S <- length(Ssamples)
+  mean(sapply(1:N_S, 
+              FUN=function(j){
+                ## get muhat based on sample S_j
+                muhat <- muhats[[j]]
+                ## average over (x_i,y_i) in a
+                ## single sample T_j the squares
+                ## (y - muhat(x))^2
+                T_j <- Tsamples[[j]]
+                ave_mu_mu_sq(muhat, mubar, T_j$x)
+              }
+  )
+  )
+}
+```
+
+Sampling variability of the function of polynomial with degree 2
+```{r}
+var_mutilde(Ssamples, Tsamples, complexity=2)
+```
+
+Sampling variability of the function of polynomial with degree 9
+```{r}
+var_mutilde(Ssamples, Tsamples, complexity=9)
+```
+
+
+#### (e)
+
+```{r}
+bias2_mutilde <- function(Ssamples, Tsamples, mu, complexity){
+  ## get the predictor function for every sample S
+  muhats <- lapply(Ssamples, 
+                   FUN=function(sample) getmuhat(sample, complexity)
+  )
+  ## get the average of these, mubar
+  mubar <- getmubar(muhats)
+  
+  ## average over all samples S
+  N_S <- length(Ssamples)
+  mean(sapply(1:N_S, 
+              FUN=function(j){
+                ## average over (x_i,y_i) in a
+                ## single sample T_j the squares
+                ## (y - muhat(x))^2
+                T_j <- Tsamples[[j]]
+                ave_mu_mu_sq(mubar, mu, T_j$x)
+              }
+  )
+  )
+}
+```
+
+Squared bias of the polynomial with degree 2:
+```{r}
+muhat = getmuFun(temp1995.data, "x", 'y')
+
+bias2_mutilde(Ssamples, Tsamples, muhat, complexity=2)
+```
+
+Squared bias of the polynomial with degree 9:
+```{r}
+bias2_mutilde(Ssamples, Tsamples, muhat, complexity=9)
+```
+
+#### (f)
+
+```{r}
+complexities <- 0:10
+
+apse_vals <-  sapply(complexities, 
+                     FUN = function(complexity){
+                       apse_all(Ssamples, Tsamples, 
+                                complexity = complexity, mu = muhat)
+                     }
+)
+
+# Print out the results
+t(rbind(complexities, apse=round(apse_vals,5)))
+
+```
+
+```{r}
+plot( complexities, apse_vals[1,], xlab="Degree", ylab="", type='l', ylim=c(0, 500), col="purple", lwd=2 )
+lines(complexities, apse_vals[2,], col="blue", lwd=2 )
+lines(complexities, apse_vals[3,], col="red", lwd=2)
+lines(complexities, apse_vals[4,], col="black", lwd=2)
+```
+
+
+```{r}
+# The increase in apse is too sharp in higher complexities. Let's zoom in a bit
+zoom = 0:6
+plot( complexities[zoom], apse_vals[1, zoom], xlab="Degree", ylab="", type='l', ylim=c(0, 500), col="purple", lwd=2 )
+lines(complexities[zoom], apse_vals[2, zoom], col="blue", lwd=2 )
+lines(complexities[zoom], apse_vals[3, zoom], col="red", lwd=2)
+lines(complexities[zoom], apse_vals[4, zoom], col="black", lwd=2)
+```
+
+
+*Conclusion*: 
+
+
+- The polynomial with degree 4 has the lowest APSE
+- The APSE first decreases with an increase in the degree but then after degree 5, it increases again
+- The bias starts off high and then decreases and hovers about values 65 - 70s 
+
+
+```{r}
+# Code for lowest ASPE 
+muhat3 <- getmuhat(temp1995.data, 4)
+
+xlim <- extendrange(temp1995.data[x,])
+
+plot(temp1995.data,
+     pch=19, col= adjustcolor("black", 0.5),
+     main="Best fit (degree 4)")
+curve(muhat3, from = xlim[1], to = xlim[2], 
+      add = TRUE, col="red", lwd=2)
+```
+
+The visual assessment confirms a decent fit of degree 4 polynomial 
+
+#### (g)
+
+(i) 
+
+Function that creates the $k$-fold samples from a given population. 
+
+```{r}
+sample.muFun = getmuFun(temp1995.data, "x", 'y')
+sample.kfold <- function(k=NULL, pop=NULL, xvarname=NULL, yvarname=NULL ) {
+  
+  N = nrow(pop)
+  kset = rep_len(1:k, N)
+  kset = sample(kset)
+  
+  samps = list()
+  for (i in 1:k) { 
+    samps[[i]] = logical(N)
+    samps[[i]][kset != i] = TRUE
+  }
+  
+Ssamples <- lapply(samps, 
+                   FUN= function(Si){getXYSample(xvarname, yvarname, Si, pop)})
+
+Tsamples <- lapply(samps, 
+                   FUN= function(Si){getXYSample(xvarname, yvarname, !Si, pop)})
+
+    list(Ssamples=Ssamples,Tsamples=Tsamples)
+}
+```
+
+(ii)
+
+```{r}
+kfold.samples = sample.kfold(k=5, pop=temp1995.data, "x", "y")
+apse_all(kfold.samples$Ssamples, kfold.samples$Tsamples, complexity = 2, mu = sample.muFun)
+```
+
+(iii)
+```{r}
+complexities <- 0:10
+kfold2.samples = sample.kfold(k=10, pop=temp1995.data, "x", "y")
+
+apse_vals2 <-sapply(complexities, 
+      FUN = function(complexity){
+          apse_all(kfold2.samples$Ssamples, kfold2.samples$Tsamples, 
+              complexity = complexity, mu = muhat) })
+
+# Print out the results
+t(rbind(complexities, apse=round(apse_vals2,5)))
+```
+
+```{r}
+plot(complexities, apse_vals2[3,], xlab="Degree", ylab="", type='l', ylim=c(0, 500), col="firebrick", lwd=2 )
+lines(complexities, apse_vals2[2,], xlab="Degree", ylab="", col="steelblue", lwd=2 )
+lines(complexities, apse_vals2[1,], col="purple", lwd=2)
+```
+
+
+
+*Conclusion:*
+
+- As we can see from above table and graph the APSE sharply decreases after degree 1 
+- The polynomial of degree 10 has the lowest APSE so we would pick that 
+- The bias also decreases sharply after degree 2 and gradually after degree 4 
+
+
+#### (h)
+
+```{r}
+ottawa <- read.csv("./ottawaOtherYears.csv")
+n <- 6732
+x <- 1:n
+temp.data <- data.frame(x=1:n, y=ottawa$Temp[1:n])
+
+complexities <- 0:10
+kfold2.samples = sample.kfold(k=10, pop=temp.data, "x", "y")
+
+
+sampsTesting <- lapply(1:N_S, FUN= function(i){getSampleComp(temp.data, n)})
+Tsamples <- lapply(sampsTesting, FUN= function(Si){getXYSample("x", "y", Si, temp.data)})
+apse_vals <- sapply(complexities,
+FUN = function(complexity){
+apse_all(Ssamples, Tsamples,
+complexity = complexity, mu = muhat)
+}
+)
+# Print out the results
+t(rbind(complexities, apse=round(apse_vals,5)))
+
+```
+
+
+```{r}
+muhat3 <- getmuhat(temp1995.data, 4)
+xlim <- extendrange(temp1995.data[x,])
+plot(temp.data,
+pch=19, col= adjustcolor("black", 0.5),
+main="Best fit (degree 4)")
+curve(muhat3, from = xlim[1], to = xlim[2],
+add = TRUE, col="red", lwd=2)
+```
+

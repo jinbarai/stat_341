@@ -96,9 +96,14 @@ sum(abs(diffAge) >= abs(diffAveAge(pop))) / length(diffAge)
 ```{r, echo=FALSE}
 plot.margin = c(1,1,1,1)
 par(mfrow = c(1,2))
-hist(diffAge, breaks = "FD", main = "Randomly Mixed Populations", xlab = "difference in averages of ages", col = "lightgrey")
+set.seed(341)
+agepair <- sapply(1:5000, FUN = function(...) {
+  tmixpop = mixRandomly(pop)
+  c(diffAveAge(tmixpop), ratioSDAge(tmixpop))
+})
+hist(agepair[1,], breaks = "FD", main = "Randomly Mixed Populations", xlab = "difference in averages of ages", col = "lightgrey")
 abline(v = diffAveAge(pop), col = "red", lwd = 2)
-hist(diffAge, breaks = "FD", main = "Randomly Mixed Populations", xlab = "ratio of standard deviations",col = "lightgrey")
+hist(agepair[2,], breaks = "FD", main = "Randomly Mixed Populations", xlab = "ratio of standard deviations",col = "lightgrey")
 abline(v = ratioSDAge(pop), col = "red", lwd = 2)
 ```
 

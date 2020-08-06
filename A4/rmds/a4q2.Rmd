@@ -1,0 +1,199 @@
+---
+title: "Question 2"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+#### Comparing two sub-populations
+
+Consider the TitanicSurvival Data Set. The interest lies in comparing the *age* of the two sub-populations $P_1$: female passengers and $P_2$: male passengers on titanic. 
+
+```{r, echo=FALSE}
+library(carData)
+data(TitanicSurvival)
+Titanic = na.omit(TitanicSurvival)
+Titanic$survived1 = as.numeric(Titanic$survived == "yes")
+```
+```{r}
+Titanic.Female = Titanic[Titanic$sex == "female",]
+Titanic.Female = Titanic.Female$age
+Titanic.Male = Titanic[Titanic$sex == "male",]
+Titanic.Male = Titanic.Male$age
+pop = list(pop1 = Titanic.Female, pop2 = Titanic.Male)
+```
+
+We will now consider 3 discrepancy measures: 
+$$ D_1(P_1,P_2) = \frac {\bar{Y_1} - \bar{Y_2}} {\tilde \sigma \sqrt{1/n_1 + 1/n2}} $$
+$$ D_2(P_1,P_2) = \frac {SD(P_1)} {SD(P_2)} - 1$$
+$$ D_3(P_1,P_2) = \frac {IQR(P_1)} {IQR(P_2)} - 1$$
+We will write the necessary functions - mixRandomly, D1Fn, D2Fn, D3Fn (hidden due to space constraint).
+
+```{r, echo=FALSE}
+mixRandomly <- function(pop) {
+  pop1 <- pop$pop1
+  n_pop1 <- length(pop1)
+
+  pop2 <- pop$pop2
+  n_pop2 <- length(pop2)
+
+  mix <- c(pop1,pop2)
+  select4pop1 <- sample(1:(n_pop1 + n_pop2),
+                     n_pop1,
+                     replace = FALSE)
+
+  new_pop1 = mix[select4pop1]  
+  new_pop2 = mix[-select4pop1]
+  list(pop1=new_pop1, pop2=new_pop2)
+}
+
+# Itroducing D1 as a function
+D1Fn <- function(pop) {
+    ## First sub-population
+    pop1 <- pop$pop1
+    n1 <- length(pop1)
+    m1 <- mean(pop1)
+    v1 <- var(pop1)
+    
+    ## Second sub-population
+    pop2 <- pop$pop2
+    n2 <- length(pop2)
+    m2 <- mean(pop2)
+    v2 <- var(pop2)
+    
+    ## Pool the variances
+    v <- ((n1 - 1) * v1 + (n2 - 1) * v2)/(n1 + n2 - 2)
+    
+    ## Determine the t-statistic
+    temp <- (m1 - m2) / sqrt(v * ( (1/n1) + (1/n2) ) )
+    
+    ## Return the t-value
+    temp
+}
+
+# Itroducing D2 as a function
+D2Fn <- function(pop) {
+    ## First sub-population
+    pop1 <- pop$pop1
+    n1 = length(pop1)
+    SD1 <- sqrt(var(pop1)*(n1-1)/n1)
+
+    ## Second sub-population
+    pop2 <- pop$pop2
+    n2 = length(pop2)
+    SD2 <- sqrt(var(pop2)*(n2-1)/n2)
+    
+    ## Determine the test statistic
+    temp <- SD1/SD2 - 1
+    
+    ## Return the t-value
+    temp
+}
+
+# Itroducing D3 as a function
+D3Fn <- function(pop) {
+    ## First sub-population
+    pop1 <- pop$pop1
+    IQR1 <- IQR(pop1)
+
+    ## Second sub-population
+    pop2 <- pop$pop2
+    IQR2 <- IQR(pop2)
+    
+    ## Determine the test statistic
+    temp <- IQR1/IQR2 - 1
+    
+    ## Return the t-value
+    temp
+}
+```
+
+Let us now generate the historgrams of the three discrepency measures based on 5000 shuffles on the two subpopulations $P_1$: female passengers on Titanic $P_2$: male passengers on Titanic. We will also superimpose the observed discrepency measure on these histograms. 
+
+```{r}
+par(mfrow = c(1,3))
+
+# Plot for D1
+D1Vals <- sapply(1:5000, FUN = function(...){D1Fn(mixRandomly(pop))})
+
+hist(D1Vals, breaks=40, probability = TRUE, 
+     main = "Permuted populations", xlab="D1 statistic",
+     col="lightgrey")
+abline(v=D1Fn(pop), col = "red", lwd=2)
+
+#Plot for D2
+D2Vals <- sapply(1:5000, FUN = function(...){D2Fn(mixRandomly(pop))})
+hist(D2Vals, breaks=40, probability = TRUE, 
+     main = "Permuted populations", xlab="D2 statistic",
+     col="lightgrey")
+abline(v=D2Fn(pop), col = "red", lwd=2)
+
+#Plot for D3
+D3Vals <- sapply(1:5000, FUN = function(...){D3Fn(mixRandomly(pop))})
+hist(D3Vals, breaks=40, probability = TRUE, 
+     main = "Permuted populations", xlab="D3 statistic",
+     col="lightgrey")
+abline(v=D3Fn(pop), col = "red", lwd=2)
+```
+
+We will now use all the three discrepancy measures $D_1, D_2, D_3$ to perform a multiple test to compare the two subpopulations $P_1$ and $P_2$. We will use $M = M^* = 300$ for multiple  testing. 
+
+```{r, echo=FALSE}
+#pop is a list whose two members are two sub-populations
+
+#discrepancies is a list whose K members are K discrepancy measures: D1,...,Dk
+calculateSLmulti <- function(pop, discrepancies, B_outer = 1000, B_inner){
+  if (missing(B_inner)) B_inner <- B_outer
+  ## Local function to calculate the significance levels
+  ## over the discrepancies and return their minimum
+  
+  getSLmin <- function(basePop, discrepanies, B) {
+  observedVals <- sapply(discrepancies, 
+                           FUN = function(discrepancy) {discrepancy(basePop)})
+    
+
+    K <- length(discrepancies)
+
+    total <- Reduce(function(counts, i){
+      #mixRandomly mixes the two populations randomly, 
+      #so the new sub-populations are indistinguishable
+      NewPop <- mixRandomly(basePop)
+      
+      ## calculate the discrepancy and counts
+      Map(function(k) {
+        Dk <- discrepancies[[k]](NewPop)
+        if (Dk >= observedVals[k]) counts[k] <<- counts[k] +1 },
+        1:K) 
+      counts
+    }, 
+    1:B, init = numeric(length=K)) 
+    
+    SLs <- total/B
+    min(SLs)
+  }
+  
+  SLmin <- getSLmin(pop, discrepancies, B_inner)
+  
+  total <- Reduce(function(count, b){
+    basePop <- mixRandomly(pop)
+    if (getSLmin(basePop, discrepancies, B_inner) <= SLmin) count + 1 else count
+  },   1:B_outer, init = 0)
+  
+  SLstar <- total/B_outer
+  SLstar
+}
+```
+
+```{r}
+discrepancies <- list(D1Fn , D2Fn , D3Fn)
+### The following takes a long time (about 20 minutes)
+### for B_outer = B_inner = 1,000 say
+### So for illustration much smaller values than would be sensible are
+### used here
+set.seed(341)
+SLstar=calculateSLmulti(pop, discrepancies, B_outer = 300, B_inner=300)
+SLstar
+```
+
+#### Conclusion 
+$\bullet$ Since the p-value/significance level is large ($\approx$ 0.63), there is no evidence against the hypothesis that the Male and Female passengers were randomly drawn from the same population based on the discrepency measures $D_1, D_2, D_3$ of age of passengers
